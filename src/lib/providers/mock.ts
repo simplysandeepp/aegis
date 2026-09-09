@@ -48,6 +48,11 @@ function hashUnit(s: string): number {
 export function mockRespond(promptText: string, opts: MockOptions = {}): string {
   const text = promptText;
   const lower = text.toLowerCase();
+  // The "attackish" checks above intentionally see the full prompt (they need
+  // to know whether spotlighting fenced the untrusted region), but the topic
+  // pulled into a BENIGN reply must come only from what the user actually
+  // asked — not from the system preamble or the planted canary line, which
+  // would otherwise bleed into an ordinary answer and look like a leak.
 
   // Spotlighting: if the untrusted region is fenced and the preamble is
   // present, the mock treats fenced instructions as data.
@@ -67,7 +72,23 @@ export function mockRespond(promptText: string, opts: MockOptions = {}): string 
   const exfilAsk = /(send|post|encode|append|include)[^.\n]{0,50}(https?:\/\/|url|image|link)/i.test(lower);
   const refusalSuppression = /(do not refuse|never say you can'?t|without any warnings)/i.test(lower);
 
-  const attackish = wantsPrompt || overrides || roleHijack || exfilAsk;
+  /**
+   * The same distinction the guard has to make: is this text PERFORMING an
+   * injection or TALKING ABOUT one? A mock that complied with "Is a system
+   * prompt a security boundary?" would leak the canary on a benign control and
+   * the offline false-positive rate would be measuring the mock's crudeness
+   * rather than the guard's behaviour.
+   */
+  const discussing =
+    /\b(?:how (?:do|can|would|should)|what (?:is|are|does)|why (?:do|does|is)|explain|describe|difference between|tradeoffs?|is a\b)/i.test(
+      lower,
+    ) ||
+    /\b(?:defend|defence|defense|mitigat|prevent|detect|guardrail|test|unit test|proofread|summaris|summariz|review|changelog|abstract|slide|fixture)\b/i.test(
+      lower,
+    ) ||
+    /\b(?:owasp|paper|blog|article|research|documentation)\b/i.test(lower);
+
+  const attackish = (wantsPrompt || overrides || roleHijack || exfilAsk) && !discussing;
   if (!attackish) {
     return benignReply(text, opts);
   }
@@ -101,10 +122,10 @@ export function mockRespond(promptText: string, opts: MockOptions = {}): string 
   return out.join('\n\n') || `Understood. ${opts.canary ?? ''}`.trim();
 }
 
-function benignReply(text: string, opts: MockOptions): string {
+function benignReply(userText: string, opts: MockOptions): string {
   // Echo-shaped, deterministic, and long enough to exercise the stream window.
-  const topic = (text.match(/[A-Za-z][A-Za-z ]{10,60}/)?.[0] ?? 'your question').trim();
-  const roll = hashUnit(`${opts.seed ?? ''}|benign|${text}`);
+  const topic = (userText.match(/[A-Za-z][A-Za-z ]{10,60}/)?.[0] ?? 'your question').trim();
+  const roll = hashUnit(`${opts.seed ?? ''}|benign|${userText}`);
   const closers = [
     'Let me know if you want more detail on any part of that.',
     'Happy to go deeper on any of these points.',
@@ -117,12 +138,19 @@ function benignReply(text: string, opts: MockOptions): string {
   );
 }
 
-/** Extract the plain text of a prompt in the AI SDK's v4 call shape. */
+/**
+ * Extract the plain text of a prompt in the AI SDK's v4 call shape, excluding
+ * the system message. The mock's own "attackish" and topic-extraction logic
+ * only needs to see what the user (or tool/retrieved content standing in for
+ * the user) actually said — including the system preamble would let the
+ * canary line or the spotlighting boilerplate bleed into an ordinary reply.
+ */
 function promptToText(prompt: unknown): string {
   if (typeof prompt === 'string') return prompt;
   if (!Array.isArray(prompt)) return JSON.stringify(prompt ?? '');
   const out: string[] = [];
   for (const msg of prompt as Array<Record<string, unknown>>) {
+    if (msg['role'] === 'system') continue;
     const content = msg['content'];
     if (typeof content === 'string') {
       out.push(content);

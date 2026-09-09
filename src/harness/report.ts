@@ -18,10 +18,11 @@ const ms = (x: number): string => `${x.toFixed(1)}ms`;
 const cell = (s: string): string => s.replace(/\|/g, '\\|');
 
 function table(headers: string[], rows: string[][]): string {
-  const out = [
-    `| ${headers.map(cell).join(' | ')} |`,
-    `|${headers.map(() => '---').join('|')}|`,
-  ];
+  // Headers are trusted literal strings authored in this file, so they are
+  // not escaped — only data cells are, since those can contain a literal "|"
+  // (a mitigation key like "spotlight:off,sandwich:off" does not, but a case
+  // id or an explanation string could).
+  const out = [`| ${headers.join(' | ')} |`, `|${headers.map(() => '---').join('|')}|`];
   for (const r of rows) out.push(`| ${r.map(cell).join(' | ')} |`);
   return out.join('\n');
 }

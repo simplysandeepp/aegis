@@ -33,7 +33,6 @@
         "./policies/*"
       ]
     },
-    "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true
   },
   "include": [
