@@ -1,12 +1,19 @@
 {
-  "name": "new-prj",
+  "name": "aegis",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "models:resolve": "tsx scripts/resolve-models.ts",
+    "db:migrate": "tsx src/lib/db/migrate.ts",
+    "harness": "tsx src/harness/cli.ts",
+    "harness:compare": "tsx src/harness/compare.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.65",
@@ -34,5 +41,6 @@
     "tsx": "^4.23.13",
     "typescript": "^5",
     "vitest": "^5.0.0"
-  }
+  },
+  "description": "LLM guardrail gateway + red-team reasoning harness"
 }
