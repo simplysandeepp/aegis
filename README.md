@@ -1,79 +1,114 @@
-# Aegis
+<div align="center">
 
-**A guardrail gateway for LLM applications, and the red-team harness that proves it works.**
+# ▲ AEGIS
 
-Aegis is two things sharing one policy engine:
+### `[ ADVERSARIAL DEFENSE LAYER FOR AUTONOMOUS INFERENCE ]`
 
-- **Gateway** — an OpenAI-compatible endpoint (`POST /v1/chat/completions`) that sits in front of
-  Groq or Gemini and inspects both the request and the response. Point an existing OpenAI-client app
-  at it by changing one base URL and it gets prompt-injection detection, PII/secret redaction,
-  system-prompt-leak detection, URL-exfiltration blocking and tool-call gating, on both stages of the
-  call, including mid-stream.
-- **Harness** — a red-team evaluation rig (`npm run harness`) that fires a hand-authored attack and
-  benign-control corpus at the gateway across a matrix of policies, models and mitigations, and
-  produces a scored, reproducible, citable report: attack success rate, false-positive rate, a
-  threshold sweep, and bootstrap confidence intervals.
+**A zero-trust guardrail gateway and red-team reasoning harness for large language models.**
+Not a wrapper. Not a demo. A weaponized evaluation instrument for the LLM attack surface.
 
-The gateway is the artifact. The harness is the proof it works — both run the exact same policy code
-in `src/lib/guard/`, so a number in a harness report describes the thing actually protecting traffic.
+[![Live](https://img.shields.io/badge/status-LIVE-e34948?style=for-the-badge)](https://aegis-pi-dun.vercel.app)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2a78d6?style=for-the-badge)](LICENSE)
+[![Zero Paid Infra](https://img.shields.io/badge/infra-zero%20cost-1baf7a?style=for-the-badge)](#)
 
-Built for zero paid services: only the Groq and Google Gemini **free tiers**. Runs fully locally with
-SQLite, no Docker, no auth. Works with **no API keys at all** in `--mock` mode, so tests and CI never
-touch the network.
+**[ → LIVE DEPLOYMENT: aegis-pi-dun.vercel.app ← ](https://aegis-pi-dun.vercel.app)**
 
-## Quick start
+</div>
+
+---
+
+> *Every LLM application is one crafted string away from doing something its operator never
+> authorized. Aegis is the layer between the untrusted world and the model that stands to obey it —
+> a policy engine, an escalation router, and the corpus of adversarial cases that prove it holds.*
+
+## THE THREAT SURFACE
+
+Prompt injection. System-prompt exfiltration. Indirect payload delivery via retrieved documents and
+poisoned tool results. Multi-turn crescendo attacks. Encoding-smuggled instructions. Refusal
+suppression. Markdown-image data exfiltration. Secret and PII elicitation. Every one of these is a
+documented, reproducible class of attack against production LLM systems — and most gateways in the
+wild detect none of them.
+
+**Aegis detects all of them, on both request and response, including mid-stream, with receipts.**
+
+## WHAT IT IS
+
+Two subsystems. One shared policy engine. Zero divergence between what protects traffic and what gets
+measured.
+
+- **⚔ THE GATEWAY** — `POST /v1/chat/completions`, OpenAI-compatible, drop-in. Sits in front of Groq
+  and Gemini inference and runs a **two-tier adversarial detection pipeline** on every request and
+  every response: a sub-millisecond deterministic rules tier, and an escalation router that promotes
+  ambiguous cases to an LLM-tier judge — only when the rules tier can't decide alone. Taint-tracked
+  message provenance (`system` / `user` / `tool` / `retrieved`), spotlighting and sandwiching
+  mitigations, canary-token leak detection, and a sliding-window streaming guard that catches
+  exfiltration attempts spanning chunk boundaries. Point any OpenAI client at it and it's protected.
+
+- **☠ THE HARNESS** — `npm run harness`, a red-team reasoning engine that fires a hand-authored
+  **127-case adversarial corpus** — 83 attacks across 13 documented attack families, 44 benign
+  controls calibrated to *look* dangerous and aren't — across a full matrix of policies, models, and
+  mitigations. Outputs attack success rate, false-positive rate, an ROC-style threshold sweep with
+  AUC, bootstrap confidence intervals, and a git-SHA-pinned, corpus-hashed, fully reproducible report.
+  This is the instrument that proves the gateway isn't security theater.
+
+Zero paid infrastructure. Groq free tier + Google Gemini free tier, nothing else. Runs fully local:
+SQLite, no Docker, no auth layer. Full offline mode (`--mock`) means the entire adversarial pipeline —
+detection, escalation, scoring — runs with **zero API keys and zero network calls**, deterministic and
+CI-safe.
+
+## ⟶ LIVE DEPLOYMENT
+
+**https://aegis-pi-dun.vercel.app**
+
+The dashboard, the playground, and the gateway are running there right now. Paste an attack into
+`/playground` and watch the detector-by-detector verdict resolve in real time.
+
+## QUICKSTART // COLD BOOT
 
 ```bash
 npm install
-cp .env.example .env.local        # add GROQ_API_KEY and/or GOOGLE_GENERATIVE_AI_API_KEY
-npm run models:resolve            # fetch live model IDs from both providers, write config/models.ts
-npm run db:migrate                # create .data/aegis.db
-npm run dev                       # dashboard + gateway at http://localhost:3000
+cp .env.example .env.local        # inject GROQ_API_KEY and/or GOOGLE_GENERATIVE_AI_API_KEY
+npm run models:resolve            # resolve live model manifests from both providers — never memorized
+npm run db:migrate                # provision local SQLite state
+npm run dev                       # gateway + dashboard live at localhost:3000
 ```
 
-No keys yet? Everything still works offline:
+No keys. No network. Still fully operational:
 
 ```bash
-npm run test                      # 123 tests, no network
-npm run harness -- --mock         # full corpus against a deterministic mock provider
+npm run test                      # 123 tests, zero network dependency
+npm run harness -- --mock         # full 127-case adversarial sweep, fully offline
 ```
 
-### API keys
+### Acquiring credentials (free tier only — no paid infra, ever)
 
-Get a free key from each provider you want to use — you only need one to do anything real:
+- **Groq** → https://console.groq.com/keys — ~30 req/min, 14,400 req/day per model
+- **Google AI Studio (Gemini)** → https://aistudio.google.com/apikey — ~15 req/min, 1,500 req/day
 
-- **Groq**: https://console.groq.com/keys — free tier is roughly 30 req/min and 14,400 req/day per
-  model, with a separate tokens/min cap that varies by model.
-- **Google AI Studio (Gemini)**: https://aistudio.google.com/apikey — free tier is roughly 15 req/min
-  and 1,500 req/day on Flash-class models.
+Env var aliases accepted: `GROQ_API_KEY` / `GROQ`, `GOOGLE_GENERATIVE_AI_API_KEY` / `GEMINI`.
 
-Aegis accepts either the canonical env var names or short aliases (see `.env.example`):
-`GROQ_API_KEY` / `GROQ`, `GOOGLE_GENERATIVE_AI_API_KEY` / `GEMINI`.
+**No model ID is ever hardcoded from memory, anywhere in this repository.** `npm run models:resolve`
+pulls the live manifest from every provider you hold a key for and writes the result to
+`config/models.ts` — the single, dated, git-tracked source of truth. Absent a key, entries resolve as
+`unverified: true` and the runtime refuses the call outright rather than firing blind at a
+decommissioned model.
 
-**Model IDs are never hardcoded from memory anywhere in this repo.** `npm run models:resolve` fetches
-the live model list from each provider you have a key for and writes the result to
-`config/models.ts` — the *only* file that names a concrete model ID, with a comment recording when it
-was fetched. Re-run it whenever a call fails with `model_decommissioned`; Groq in particular retires
-models on short notice. Without a key, the corresponding entries are written as `unverified: true` and
-the runtime refuses to call them — see `UnverifiedModelError` — rather than silently hitting a dead ID.
+## THE PROTOCOL
 
-## Using the gateway
+Any OpenAI-compatible client, pointed at `/v1`, is now defended. Control plane rides in headers — the
+request body stays untouched:
 
-Point any OpenAI-compatible client at `http://localhost:3000/v1` and it works unmodified. Extra
-controls are headers so the request body stays exactly OpenAI-shaped:
-
-| Header | Purpose |
+| Header | Function |
 |---|---|
-| `x-aegis-policy` | which policy to enforce: `permissive`, `balanced` (default), `strict`, or a custom one from `policies/` |
-| `x-aegis-trust` | JSON map of message index → `system\|user\|tool\|retrieved`, e.g. `{"2":"retrieved"}` for a RAG document |
-| `x-aegis-canary` | set to `off` to skip planting a canary token in the system prompt |
-| `x-aegis-mock` | set to `1` to route through the deterministic mock provider instead of a real one |
+| `x-aegis-policy` | active policy: `permissive` / `balanced` (default) / `strict` / custom |
+| `x-aegis-trust` | per-message taint map — `{"2":"retrieved"}` marks a RAG document untrusted |
+| `x-aegis-canary` | `off` disables canary-token injection into the system prompt |
+| `x-aegis-mock` | `1` routes through the deterministic offline provider |
 
-Every response carries `x-aegis-*` headers reporting what happened — `x-aegis-decision`,
-`x-aegis-reasons` (short codes, never raw detector text), `x-aegis-latency`, `x-aegis-escalated`,
-`x-aegis-policy-hash` — without ever putting detector internals in the response body.
+Every response is instrumented: `x-aegis-decision`, `x-aegis-reasons` (short codes only — detector
+internals never leave the engine), `x-aegis-latency`, `x-aegis-escalated`, `x-aegis-policy-hash`.
 
-### A clean request (allowed)
+### ▸ CLEAN SIGNAL
 
 ```bash
 curl -s http://localhost:3000/v1/chat/completions \
@@ -91,7 +126,7 @@ x-aegis-policy: balanced
 x-aegis-rules-score: 0.000
 ```
 
-### An attack (blocked before the provider is ever called)
+### ▸ HOSTILE PAYLOAD — NEUTRALIZED PRE-INFERENCE
 
 ```bash
 curl -s http://localhost:3000/v1/chat/completions \
@@ -109,28 +144,28 @@ x-aegis-reasons: injection:instruction-override,injection:role-hijack,injection:
 x-aegis-rules-score: 0.998
 ```
 
-Drop `-H 'x-aegis-mock: 1'` and set `"model": "groq/<id-from-config/models.ts>"` (or `google/<id>`) to
-hit a real free-tier model.
+The payload never reaches the model. Zero tokens spent. Drop `-H 'x-aegis-mock: 1'` and set
+`"model": "groq/<id>"` (or `google/<id>`) to run it live against a real free-tier inference endpoint.
 
-### Standalone check
+### ▸ STANDALONE DETECTION CHECK
 
-`POST /v1/guard` runs the policy engine without proxying anywhere — `{ text, stage, policy, trust? }`
-in, the full `Decision` (every detector's verdict) out. This is what powers `/playground`.
+`POST /v1/guard` — `{ text, stage, policy, trust? }` in, the full adversarial `Decision` (every
+detector's raw verdict) out. No proxying. This is the engine behind `/playground`.
 
-## The dashboard
+## OBSERVABILITY DECK
 
-`npm run dev` serves:
+`npm run dev` (or the [live deployment](https://aegis-pi-dun.vercel.app)) serves:
 
-- `/` — scorecards, an ASR-vs-FPR scatter across runs, a trend line
-- `/runs/[id]` — per-family confusion matrices, the escalation threshold sweep, latency, token spend
-- `/runs/[id]/cases/[caseId]` — the trace view: payload, normalized/spotlighted text with every
-  detector's spans highlighted inline, the rules score against the escalation band, the LLM judge's
-  rationale when escalated, and the model's actual output
-- `/traffic` — the live gateway decision log, filterable by policy/action/detector
-- `/playground` — paste text, pick a policy and stage, get a live detector-by-detector verdict, with a
-  preset dropdown of corpus attacks
+- **`/`** — scorecards, ASR-vs-FPR scatter across every run, trend over time
+- **`/runs/[id]`** — per-family confusion matrices, the threshold-sweep ROC curve with AUC, latency
+  distribution, token economics
+- **`/runs/[id]/cases/[caseId]`** — full forensic trace: payload, spotlighted/normalized text with
+  every detector's spans highlighted inline, the rules score plotted against the escalation band, the
+  LLM judge's rationale, the model's actual output
+- **`/traffic`** — the live decision log, filterable by policy / action / detector
+- **`/playground`** — load a corpus attack, fire it, watch the verdict resolve detector-by-detector
 
-## The harness
+## THE RED-TEAM ENGINE
 
 ```bash
 npm run harness -- \
@@ -141,58 +176,67 @@ npm run harness -- \
   --repeat 3 --concurrency 2 --limit 50
 ```
 
-`--mock` runs the whole thing offline against a deterministic fake provider — the pipeline the mock
-exercises is identical, so `npm run harness -- --mock` is a real regression test, not a smoke test.
+`--mock` runs the entire adversarial matrix offline against a deterministic — but genuinely
+susceptible — fake provider. Same pipeline. Same detectors. Real regression signal, not a smoke test.
 
-Results are content-addressed and cached by `(caseId, policyHash, model, mitigations, repeatIdx)`, so
-re-running the same matrix is nearly free and an interrupted run resumes instead of restarting.
-Every provider call goes through a shared rate limiter (concurrency 2 by default, full-jitter backoff
-on 429/503, a hard token budget) so a run never hangs and never blows a day's free-tier quota in one
-shot.
+Every result is content-addressed and cached by `(caseId, policyHash, model, mitigations, repeatIdx)` —
+re-running a matrix costs nothing, an interrupted campaign resumes instead of restarting. All provider
+traffic passes through a shared rate limiter — concurrency-capped, full-jitter exponential backoff on
+429/503, hard token budget with abort-on-exceed — so a live run never stalls and never detonates a
+day's free-tier quota.
 
-Each run writes `runs/<id>/results.jsonl`, `runs/<id>/report.md` (self-contained enough to cite: git
-SHA, dirty-tree flag, corpus hash, resolved model IDs, the full policy JSON), and mirrors into SQLite
-for the dashboard.
+Every run writes `runs/<id>/results.jsonl` and a self-contained `report.md` — git SHA, dirty-tree flag,
+corpus hash, resolved model manifest, full policy JSON — citable on its own, no external context
+required.
 
 ```bash
 npm run harness:compare -- <runA> <runB> --tolerance 0.02
 ```
 
-prints a per-family diff and exits non-zero if attack success rate or false-positive rate rises beyond
-the tolerance in either direction — wired into `.github/workflows/ci.yml`, entirely in `--mock` mode.
+Per-family regression diff. Non-zero exit if attack success rate *or* false-positive rate drifts beyond
+tolerance in either direction. Wired into CI (`.github/workflows/ci.yml`), fully offline.
 
-## Free-tier rate-limit notes
+## FREE-TIER OPERATIONAL DOCTRINE
 
-- Groq and Gemini free tiers are per-model and change without notice; `npm run models:resolve` is the
-  only defense against a stale ID.
-- The shared limiter defaults to concurrency 2. Raise `AEGIS_CONCURRENCY` cautiously — free tiers
-  punish bursts more than steady load.
-- `AEGIS_TOKEN_BUDGET` (default 200,000) aborts a harness run rather than draining a day's quota. Use
-  `--limit` to size a live run before committing to the full corpus.
-- The result cache means the *first* live run against a given corpus+config costs real quota; re-runs
-  of the same matrix are free.
+- Groq and Gemini free-tier manifests mutate without notice — `npm run models:resolve` is the only
+  defense against firing at a decommissioned model.
+- Default concurrency: 2. Raise `AEGIS_CONCURRENCY` cautiously — free tiers punish bursts harder than
+  sustained load.
+- `AEGIS_TOKEN_BUDGET` (default 200,000) hard-aborts a run rather than silently draining a day's quota.
+  Use `--limit` to size a live campaign before committing to the full corpus.
+- The result cache means only the *first* live run against a given config spends real quota —
+  everything after is free.
 
-## Project layout
+## ARCHITECTURE MAP
 
 ```
-config/models.ts          the only file with a concrete model ID
+config/models.ts          the only file that names a concrete model ID
 policies/*.json            permissive / balanced / strict policy configs
-src/lib/guard/             the policy engine — pure TypeScript, no framework imports
+src/lib/guard/             the policy engine — pure TypeScript, zero framework coupling
   types.ts                 core types: Detector, DetectorResult, Decision, Policy
   registry.ts               detector registration — the primary extension point
   router.ts                  the escalation router (rules tier -> band -> LLM tier)
   spotlight.ts                spotlighting and sandwiching mitigations
-  detectors/                 all nine rules detectors + three LLM-tier judges
-src/lib/providers/         Groq/Google resolution, rate limiter, mock provider
-src/lib/stream-guard.ts    the sliding-window streaming output guard
+  detectors/                 nine rules detectors + three LLM-tier adversarial judges
+src/lib/providers/         Groq/Google resolution, rate limiter, deterministic mock provider
+src/lib/stream-guard.ts    the sliding-window streaming exfiltration guard
 src/lib/gateway/           the request pipeline shared by the gateway and the harness
 src/lib/db/                Drizzle schema + SQLite handle
 src/app/api/v1/            POST /v1/chat/completions, POST /v1/guard
-src/app/                   dashboard pages
-src/harness/               corpus loader, matrix runner, scorer, report, CLI, regression gate
-corpus/*.yaml              83 attacks + 44 benign controls, hand-authored
-tests/                     123 Vitest tests, no network required
+src/app/                   the observability deck
+src/harness/               corpus loader, matrix runner, scorer, report generator, regression gate
+corpus/*.yaml              83 attacks + 44 benign controls — the adversarial corpus, hand-authored
+tests/                     123 tests, zero network dependency
 ```
 
-See `ARCHITECTURE.md` for the design rationale and its explicit limitations, and `RESEARCH.md` for how
-to extend the engine and what open questions the harness is positioned to answer.
+Full design rationale, threat model, and its explicit limitations → **[`ARCHITECTURE.md`](ARCHITECTURE.md)**.
+Extension points, metric definitions, open research questions → **[`RESEARCH.md`](RESEARCH.md)**.
+License → **[`LICENSE`](LICENSE)** (MIT).
+
+---
+
+<div align="center">
+
+*Built to answer one question: does the guardrail actually hold, or does it just look like it does?*
+
+</div>
