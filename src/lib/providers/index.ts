@@ -175,7 +175,11 @@ export function createMockJudge(opts: { fail?: string } = {}): LlmJudge {
       if (!parsed.success) {
         return { ok: false, error: 'mock judge could not satisfy the requested schema', modelId: 'mock' };
       }
-      return { ok: true, value: parsed.data, tokensUsed: 0, modelId: 'mock' };
+      // A nominal cost so the escalation/token accounting in a --mock run is
+      // representative rather than identically zero. Roughly what a small
+      // judge model actually spends on one classification.
+      const tokensUsed = 180 + Math.min(600, Math.round(text.length / 4));
+      return { ok: true, value: parsed.data, tokensUsed, modelId: 'mock' };
     },
   };
 }

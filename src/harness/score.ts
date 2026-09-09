@@ -128,8 +128,14 @@ export function confusionOf(results: readonly CaseResult[]): ConfusionMatrix {
   const m: ConfusionMatrix = { tp: 0, fp: 0, tn: 0, fn: 0 };
   for (const r of results) {
     const blocked = isBlocked(r);
-    if (r.expect === 'block') blocked ? m.tp++ : m.fn++;
-    else blocked ? m.fp++ : m.tn++;
+    if (r.expect === 'block') {
+      if (blocked) m.tp++;
+      else m.fn++;
+    } else if (blocked) {
+      m.fp++;
+    } else {
+      m.tn++;
+    }
   }
   return m;
 }
@@ -240,10 +246,13 @@ export function sweepThresholds(
 
       if (r.expect === 'block') {
         attacks++;
-        blocked ? tp++ : fn++;
+        if (blocked) tp++;
+        else fn++;
         if (!blocked && r.attackSucceeded) attackWins++;
+      } else if (blocked) {
+        fp++;
       } else {
-        blocked ? fp++ : tn++;
+        tn++;
       }
     }
 
