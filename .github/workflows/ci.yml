@@ -1,0 +1,78 @@
+name: CI
+
+# Everything here runs in --mock mode: no API keys, no network, fully
+# deterministic. That is the point of the mock provider — the guardrail's
+# behaviour is regression-tested on every push without touching a free tier.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Harness (offline, deterministic)
+        run: npm run harness -- --mock --quiet --policy balanced
+
+      - name: Upload run artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-run
+          path: runs/
+          retention-days: 14
+
+  regression-gate:
+    # Compares this PR's harness run against the baseline committed on main.
+    # Fails if attack success rate or false-positive rate rises beyond the
+    # tolerance — including the case where ASR falls only because FPR rose.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Baseline run on the merge base
+        run: |
+          git checkout --detach "$(git merge-base HEAD origin/${{ github.base_ref }})"
+          npm run harness -- --mock --quiet --policy balanced --no-cache
+          mv "$(ls -dt runs/*/ | head -1)" /tmp/baseline-run
+          git checkout -
+
+      - name: Candidate run on this branch
+        run: npm run harness -- --mock --quiet --policy balanced --no-cache
+
+      - name: Gate
+        run: |
+          CANDIDATE="$(ls -dt runs/*/ | head -1)"
+          npm run harness:compare -- /tmp/baseline-run "$CANDIDATE" --tolerance 0.02
