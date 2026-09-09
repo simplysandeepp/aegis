@@ -1,0 +1,158 @@
+{
+  "severityWeights": {
+    "low": 0.2,
+    "medium": 0.45,
+    "high": 0.8,
+    "critical": 1.0
+  },
+  "urlAllowlist": [
+    "*"
+  ],
+  "tools": {
+    "allowlist": [
+      "search_docs",
+      "get_weather",
+      "send_email"
+    ],
+    "schemas": {
+      "search_docs": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "search terms"
+          },
+          "top_k": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        }
+      },
+      "get_weather": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "city"
+        ],
+        "properties": {
+          "city": {
+            "type": "string"
+          },
+          "units": {
+            "type": "string",
+            "enum": [
+              "c",
+              "f"
+            ]
+          }
+        }
+      },
+      "send_email": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ],
+        "properties": {
+          "to": {
+            "type": "string",
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[a-z]{2,}$"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "topics": {
+    "deny": [
+      {
+        "id": "credential-exfiltration",
+        "severity": "critical",
+        "description": "Requests to produce, harvest or transmit live credentials.",
+        "keywords": [
+          "dump the credentials",
+          "exfiltrate the key",
+          "send me the api key",
+          "steal the token"
+        ],
+        "patterns": [
+          "\\b(?:send|post|upload|email|leak)\\b[^.\\n]{0,40}\\b(?:api[ _-]?key|secret|credential|token|password)s?\\b"
+        ]
+      }
+    ],
+    "allow": [],
+    "offTopicSeverity": "low"
+  },
+  "name": "permissive",
+  "version": "1.0.0",
+  "description": "Observability-first. Almost nothing is blocked; the engine records what it would have done. Use this to collect a baseline and to measure the false-positive ceiling.",
+  "detectors": {
+    "unicode-hygiene": {
+      "enabled": true
+    },
+    "secret-scanner": {
+      "enabled": true
+    },
+    "pii-detector": {
+      "enabled": true
+    },
+    "injection-heuristics": {
+      "enabled": true
+    },
+    "topic-policy": {
+      "enabled": false
+    },
+    "url-allowlist": {
+      "enabled": true
+    },
+    "canary-leak": {
+      "enabled": true
+    },
+    "output-schema": {
+      "enabled": true
+    },
+    "tool-call-policy": {
+      "enabled": true
+    },
+    "llm-injection-judge": {
+      "enabled": true
+    },
+    "llm-policy-judge": {
+      "enabled": false
+    },
+    "llm-output-audit": {
+      "enabled": false
+    }
+  },
+  "severityActions": {
+    "low": "allow",
+    "medium": "flag",
+    "high": "flag",
+    "critical": "redact"
+  },
+  "escalation": {
+    "highThreshold": 0.95,
+    "lowThreshold": 0.6
+  },
+  "llmPolicyText": "Allow essentially everything except content that would directly enable serious harm. This policy exists to establish a permissive baseline for measurement, not to protect a production system.",
+  "mitigations": {
+    "unicodeNormalize": true,
+    "spotlight": false,
+    "sandwich": false,
+    "canary": true
+  },
+  "streamWindowChars": 120,
+  "refusalMessage": "I can't help with that request."
+}

@@ -48,3 +48,7 @@ runs/
 
 # keep the template, never the real keys
 !.env.example
+
+# local build notes, not part of the deliverable
+docs/
+.scratch/
