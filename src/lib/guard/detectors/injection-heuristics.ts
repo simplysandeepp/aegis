@@ -278,6 +278,17 @@ export const injectionHeuristicsDetector = defineDetector({
       if (rank(severity) < rank('high')) severity = 'high';
     }
 
+    // Several independent families firing at once is qualitatively different
+    // from one pattern matching: it is the signature of a deliberately
+    // constructed attack rather than an unlucky turn of phrase. Without this
+    // promotion a single high-severity detector caps its own contribution at
+    // severityWeights.high and can never reach a confident block on its own.
+    if (hitFamilies.length >= 3 && score >= 0.85) {
+      severity = 'critical';
+      labels.push('injection:multi-family');
+      notes.push(`${hitFamilies.length} independent families co-occur`);
+    }
+
     return {
       triggered: score > 0.05,
       score: Math.max(0, Math.min(1, score)),
